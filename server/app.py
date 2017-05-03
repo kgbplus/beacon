@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-""" 
+"""
 Simple server
-Takes i-beacon read data with POST method 
+Takes i-beacon read data with POST method
 Return summary data with GET
 """
 
@@ -26,22 +26,26 @@ db = SQLAlchemy(app)
 
 class Beacon(db.Model):
     """
-    I-beacon data model 
+    I-beacon data model
     """
     __tablename__ = 'beacons'
 
     id = db.Column(db.Integer, primary_key=True)
-    raspi_serial = db.Column(db.String(14), index=True)
-    ibeacon_serial = db.Column(db.String(32), index=True)
-    in_time = db.Column(db.DateTime)
-    out_time = db.Column(db.DateTime)
+    raspi_serial = db.Column(db.String(14))
+    ibeacon_uuid = db.Column(db.String(32))
+    ibeacon_major = db.Column(db.Integer)
+    ibeacon_minor = db.Column(db.Integer)
+    in_time = db.Column(db.DateTime, index=True)
+    out_time = db.Column(db.DateTime, index=True)
 
     @property
     def serialize(self):
        """Return object data in easily serializeable format"""
        return {
            'raspi_serial': self.raspi_serial,
-           'ibeacon_serial': self.ibeacon_serial,
+           'ibeacon_uuid': self.ibeacon_uuid,
+           'ibeacon_major': self.ibeacon_major,
+           'ibeacon_minor': self.ibeacon_minor,
            'in_time': self.in_time.isoformat(),
            'out_time': self.out_time.isoformat()
        }
@@ -58,12 +62,14 @@ def page_not_found(e):
 @app.route('/api/add_message/', methods=['GET', 'POST'])
 def add_message():
     """
-    Inputs new messages and saves it in db     
+    Inputs new messages and saves it in db
     """
     content = request.get_json(silent=True, force=False)
     if content:
         new_beacon = Beacon(raspi_serial = content.get('raspi_serial'),
-                            ibeacon_serial = content.get('ibeacon_serial'),
+                            ibeacon_uuid = content.get('ibeacon_uuid'),
+                            ibeacon_major=content.get('ibeacon_major'),
+                            ibeacon_minor=content.get('ibeacon_minor'),
                             in_time = parser.parse(content.get('in_time')),
                             out_time = parser.parse(content.get('out_time')),)
         db.session.add(new_beacon)
@@ -97,4 +103,4 @@ def get_all_messages():
 
 
 if __name__== "__main__":
-    app.run(debug=False)
+    app.run(debug=False, host='10.0.100.102', port=5000)
