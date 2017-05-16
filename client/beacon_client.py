@@ -9,9 +9,10 @@ from collections import deque
 import bluetooth._bluetooth as bluez
 
 
-#SERVER_URL = 'http://10.0.100.102/api/add_message/'
-SERVER_URL = 'http://127.0.0.1/api/add_message/'
+#SERVER_URL = 'http://10.0.100.102/api/messages/'
+SERVER_URL = 'http://127.0.0.1/api/messages/'
 TIMEOUT = 2
+DIST_ZERO = 50
 DEBUG = True
 
 
@@ -132,7 +133,7 @@ def main(*args, **kwargs):
                     print(beacon)
                 beacon_id = beacon[:-8]
                 beacon_datetime = datetime.datetime.now()
-                beacon_dist = int(beacon[-2:])
+                beacon_dist = int(beacon[-2:]) - DIST_ZERO
                 beacons.add(beacon_id, beacon_datetime, beacon_dist)
     except KeyboardInterrupt:
         print("\nCtrl-C pressed")

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Messages</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="/static/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/bootstrap-table.css">
+    <style>
+        .update {
+            color: #333;
+            margin-right: 5px;
+        }
+        .remove {
+            color: red;
+            margin-left: 5px;
+        }
+        .alert {
+            padding: 0 14px;
+            margin-bottom: 0;
+            display: inline-block;
+        }
+    </style>
+    <script src="/static/jquery.min.js"></script>
+    <script src="/static/bootstrap.min.js"></script>
+    <script src="/static/bootstrap-table.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Messages</h1>
+        <p class="toolbar">
+            <a class="create btn btn-default" href="javascript:">Create Item</a>
+            <a class="events btn btn-link" href="javascript:">Events</a>
+            <a class="gates btn btn-link" href="javascript:">Gates</a>
+            <span class="alert"></span>
+        </p>
+        <table id="table"
+               data-show-refresh="true"
+               data-show-columns="true"
+               data-search="true"
+               data-query-params="queryParams"
+               data-toolbar=".toolbar">
+            <thead>
+            <tr>
+            <th data-field="id" data-sortable="true">ID</th>
+            <th data-field="raspi_serial" data-sortable="true">Raspi Serial</th>
+            <th data-field="ibeacon_uuid" data-sortable="true">I-Beacon UUID</th>
+            <th data-field="ibeacon_major" data-sortable="true">Major</th>
+            <th data-field="ibeacon_minor" data-sortable="true">Minor</th>
+            <th data-field="in_time" data-sortable="true">In Time</th>
+            <th data-field="out_time" data-sortable="true">Out Time</th>
+            <th data-field="min_dist" data-sortable="true">Min Dist</th>
+                <th data-field="action"
+                    data-align="center"
+                    data-formatter="actionFormatter"
+                    data-events="actionEvents">Action</th>
+            </tr>
+            </thead>
+        </table>
+    </div>
+
+    <div id="modal" class="modal fade">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title"></h4>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Raspi Serial</label>
+                        <input type="text" class="form-control" name="raspi_serial" placeholder="Raspi Serial">
+                    </div>
+                    <div class="form-group">
+                        <label>I-Beacon UUID</label>
+                        <input type="text" class="form-control" name="ibeacon_uuid" placeholder="I-Beacon UUID">
+                    </div>
+                    <div class="form-group">
+                        <label>Major</label>
+                        <input type="number" class="form-control" name="ibeacon_major" placeholder="Major">
+                    </div>
+                    <div class="form-group">
+                        <label>Minor</label>
+                        <input type="number" class="form-control" name="ibeacon_minor" placeholder="Minor">
+                    </div>
+                    <div class="form-group">
+                        <label>In Time</label>
+                        <input type="text" class="form-control" name="in_time" placeholder="In Time">
+                    </div>
+                    <div class="form-group">
+                        <label>Out Time</label>
+                        <input type="text" class="form-control" name="out_time" placeholder="Out Time">
+                    </div>
+                    <div class="form-group">
+                        <label>Min Distance</label>
+                        <input type="number" class="form-control" name="min_dist" placeholder="Min Distance">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary submit">Submit</button>
+                </div>
+            </div><!-- /.modal-content -->
+        </div><!-- /.modal-dialog -->
+    </div><!-- /.modal -->
+<script>
+    var API_URL = 'http://' + location.host + '/api/messages/';
+    var $table = $('#table').bootstrapTable({url: API_URL}),
+        $modal = $('#modal').modal({show: false}),
+        $alert = $('.alert').hide();
+    $(function () {
+        // create event
+        $('.create').click(function () {
+            showModal($(this).text());
+        });
+        $modal.find('.submit').click(function () {
+            var row = {};
+            $modal.find('input[name]').each(function () {
+                row[$(this).attr('name')] = $(this).val();
+            });
+            $.ajax({
+                url: API_URL + ($modal.data('id') || ''),
+                type: $modal.data('id') ? 'put' : 'post',
+                contentType: 'application/json',
+                data: JSON.stringify(row),
+                success: function () {
+                    $modal.modal('hide');
+                    $table.bootstrapTable('refresh');
+                    showAlert(($modal.data('id') ? 'Update' : 'Create') + ' item successful!', 'success');
+                },
+                error: function () {
+                    $modal.modal('hide');
+                    showAlert(($modal.data('id') ? 'Update' : 'Create') + ' item error!', 'danger');
+                }
+            });
+        });
+    });
+    function queryParams(params) {
+        return {};
+    }
+    function actionFormatter(value) {
+        return [
+            '<a class="update" href="javascript:" title="Update Item"><i class="glyphicon glyphicon-edit"></i></a>',
+            '<a class="remove" href="javascript:" title="Delete Item"><i class="glyphicon glyphicon-remove-circle"></i></a>',
+        ].join('');
+    }
+    // update and delete events
+    window.actionEvents = {
+        'click .update': function (e, value, row) {
+            showModal($(this).attr('title'), row);
+        },
+        'click .remove': function (e, value, row) {
+            if (confirm('Are you sure to delete this item?')) {
+                $.ajax({
+                    url: API_URL + row.id,
+                    type: 'delete',
+                    success: function () {
+                        $table.bootstrapTable('refresh');
+                        showAlert('Delete item successful!', 'success');
+                    },
+                    error: function () {
+                        showAlert('Delete item error!', 'danger');
+                    }
+                })
+            }
+        }
+    };
+    function showModal(title, row) {
+        row = row || {
+            id: '',
+            name: '',
+            stargazers_count: 0,
+            forks_count: 0,
+            description: ''
+        }; // default row value
+        $modal.data('id', row.id);
+        $modal.find('.modal-title').text(title);
+        for (var name in row) {
+            $modal.find('input[name="' + name + '"]').val(row[name]);
+        }
+        $modal.modal('show');
+    }
+    function showAlert(title, type) {
+        $alert.attr('class', 'alert alert-' + type || 'success')
+              .html('<i class="glyphicon glyphicon-check"></i> ' + title).show();
+        setTimeout(function () {
+            $alert.hide();
+        }, 3000);
+    }
+</script>
+</body>
+</html>

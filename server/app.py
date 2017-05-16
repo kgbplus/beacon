@@ -8,20 +8,30 @@ Return summary data with GET
 
 from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import aliased
+from flask_migrate import Migrate
 import os
-import json
 from dateutil import parser
-
+import sys
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
+if sys.version_info < (3, 0):
+    reload(sys)
+    sys.setdefaultencoding("utf-8")
+
 app = Flask(__name__)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir,'data.sqlite3')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'data.sqlite3')
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
+
+"""
+ ****************** MODELS ******************
+"""
 
 
 class Beacon(db.Model):
@@ -41,17 +51,375 @@ class Beacon(db.Model):
 
     @property
     def serialize(self):
-       """Return object data in easily serializeable format"""
-       return {
-           'id': self.id,
-           'raspi_serial': self.raspi_serial,
-           'ibeacon_uuid': self.ibeacon_uuid,
-           'ibeacon_major': self.ibeacon_major,
-           'ibeacon_minor': self.ibeacon_minor,
-           'in_time': self.in_time.isoformat(),
-           'out_time': self.out_time.isoformat(),
-           'min_dist': self.min_dist
-       }
+        """Return object data in easily serializeable format"""
+        return {
+            'id': self.id,
+            'raspi_serial': self.raspi_serial,
+            'ibeacon_uuid': self.ibeacon_uuid,
+            'ibeacon_major': self.ibeacon_major,
+            'ibeacon_minor': self.ibeacon_minor,
+            'in_time': self.in_time.isoformat(),
+            'out_time': self.out_time.isoformat(),
+            'min_dist': self.min_dist
+        }
+
+
+class Gate(db.Model):
+    """
+    I-Beacon agents pairs
+    """
+    __tablename__ = 'gates'
+
+    id = db.Column(db.Integer, primary_key=True)
+    raspi_serial_left = db.Column(db.String(14), index=True)
+    raspi_serial_right = db.Column(db.String(14), index=True)
+    distance = db.Column(db.Integer)
+
+    @property
+    def serialize(self):
+        """Return object data in easily serializeable format"""
+        return {
+            'id': self.id,
+            'raspi_serial_left': self.raspi_serial_left,
+            'raspi_serial_right': self.raspi_serial_right,
+            'distance': self.distance
+        }
+
+
+class Event(db.Model):
+    """
+    Gate passing through event
+    """
+    __tablename__ = 'events'
+
+    id = db.Column(db.Integer, primary_key=True)
+    gate_id = db.Column(db.Integer, index=True)
+    ibeacon_uuid = db.Column(db.String(32))
+    ibeacon_major = db.Column(db.Integer)
+    ibeacon_minor = db.Column(db.Integer)
+    in_time = db.Column(db.DateTime, index=True)
+    out_time = db.Column(db.DateTime, index=True)
+    course = db.Column(db.Enum('left', 'center', 'right', 'wide'))
+
+    @property
+    def serialize(self):
+        """Return object data in easily serializeable format"""
+        return {
+            'id': self.id,
+            'gate_id': self.gate_id,
+            'ibeacon_uuid': self.ibeacon_uuid,
+            'ibeacon_major': self.ibeacon_major,
+            'ibeacon_minor': self.ibeacon_minor,
+            'in_time': self.in_time.isoformat(),
+            'out_time': self.out_time.isoformat(),
+            'course': self.course
+        }
+
+
+"""
+ ****************** MESSAGES ******************
+"""
+
+
+@app.route('/api/messages/', methods=['GET'])
+def get_messages():
+    """
+    Sends back all messages
+    """
+    content = Beacon.query.all()
+    return jsonify([i.serialize for i in content]), 200
+
+
+@app.route('/api/messages/', methods=['POST'])
+def add_message():
+    """
+    Inputs new message and saves it in db
+    """
+    content = request.get_json(silent=True, force=False)
+    if content:
+        new_message = Beacon(raspi_serial=content.get('raspi_serial'),
+                             ibeacon_uuid=content.get('ibeacon_uuid'),
+                             ibeacon_major=content.get('ibeacon_major'),
+                             ibeacon_minor=content.get('ibeacon_minor'),
+                             in_time=parser.parse(content.get('in_time')),
+                             out_time=parser.parse(content.get('out_time')),
+                             min_dist=content.get('min_dist'))
+        db.session.add(new_message)
+        return "<h1>Ok</h1>", 200
+    else:
+        return "<h1>Error</h1>", 400
+
+
+@app.route('/api/messages/<int:id>', methods=['PUT'])
+def update_message(id):
+    """
+    Update message with given id
+    """
+    content = request.get_json(silent=True, force=False)
+    if content:
+        try:
+            message = Beacon.query.filter(Beacon.id == id).first()
+            message.raspi_serial = content.get('raspi_serial')
+            message.ibeacon_uuid = content.get('ibeacon_uuid')
+            message.ibeacon_major = content.get('ibeacon_major')
+            message.ibeacon_minor = content.get('ibeacon_minor')
+            message.in_time = parser.parse(content.get('in_time'))
+            message.out_time = parser.parse(content.get('out_time'))
+            message.min_dist = content.get('min_dist')
+
+            db.session.commit()
+        except:
+            return "<h1>Error</h1>", 404
+    else:
+        return "<h1>Error</h1>", 400
+    return "<h1>Ok</h1>", 200
+
+
+@app.route('/api/messages/<int:id>', methods=['DELETE'])
+def delete_message(id):
+    """
+    Delete message with given id
+    """
+    try:
+        Beacon.query.filter(Beacon.id == id).delete(synchronize_session='evaluate')
+    except:
+        return "<h1>Error</h1>", 404
+    return "<h1>Ok</h1>", 200
+
+
+"""
+ ****************** GATES ******************
+"""
+
+
+@app.route('/api/gates/', methods=['GET'])
+def get_gates():
+    """
+    Sends back all gates
+    """
+    content = Gate.query.all()
+    return jsonify([i.serialize for i in content]), 200
+
+
+@app.route('/api/gates/', methods=['POST'])
+def add_gate():
+    """
+    Inputs new gate and saves it in db
+    """
+    content = request.get_json(silent=True, force=False)
+    if content:
+        new_gate = Gate(raspi_serial_left=content.get('raspi_serial_left'),
+                        raspi_serial_right=content.get('raspi_serial_right'),
+                        distance=content.get('distance'))
+        db.session.add(new_gate)
+        return "<h1>Ok</h1>", 200
+    else:
+        return "<h1>Error</h1>", 400
+
+
+@app.route('/api/gates/<int:id>', methods=['PUT'])
+def update_gate(id):
+    """
+    Update gate with given id
+    """
+    content = request.get_json(silent=True, force=False)
+    if content:
+        try:
+            gate = Gate.query.filter(Gate.id == id).first()
+            gate.raspi_serial_left = content.get('raspi_serial_left')
+            gate.raspi_serial_right = content.get('raspi_serial_right')
+            gate.distance = content.get('distance')
+
+            db.session.commit()
+        except:
+            return "<h1>Error</h1>", 404
+    else:
+        return "<h1>Error</h1>", 400
+    return "<h1>Ok</h1>", 200
+
+
+"""
+ ****************** EVENTS ******************
+"""
+
+
+@app.route('/api/events/', methods=['GET'])
+def get_events():
+    """
+    Sends back all events
+    """
+    content = Event.query.all()
+    return jsonify([i.serialize for i in content]), 200
+
+
+@app.route('/api/events/', methods=['POST'])
+def add_event():
+    """
+    Inputs new event and saves it in db
+    """
+    content = request.get_json(silent=True, force=False)
+    if content:
+        new_event = Event(gate_id=content.get('gate_id'),
+                          ibeacon_uuid=content.get('ibeacon_uuid'),
+                          ibeacon_major=content.get('ibeacon_major'),
+                          ibeacon_minor=content.get('ibeacon_minor'),
+                          in_time=parser.parse(content.get('in_time')),
+                          out_time=parser.parse(content.get('out_time')),
+                          course=content.get('course'))
+        db.session.add(new_event)
+        return "<h1>Ok</h1>", 200
+    else:
+        return "<h1>Error</h1>", 400
+
+
+@app.route('/api/events/<int:id>', methods=['PUT'])
+def update_event(id):
+    """
+    Update event with given id
+    """
+    content = request.get_json(silent=True, force=False)
+    if content:
+        try:
+            event = Event.query.filter(Event.id == id).first()
+            event.gate_id = content.get('gate_id')
+            event.ibeacon_uuid = content.get('ibeacon_uuid')
+            event.ibeacon_major = content.get('ibeacon_major')
+            event.ibeacon_minor = content.get('ibeacon_minor')
+            event.in_time = parser.parse(content.get('in_time'))
+            event.out_time = parser.parse(content.get('out_time'))
+            event.course = content.get('course')
+
+            db.session.commit()
+        except:
+            return "<h1>Error</h1>", 404
+    else:
+        return "<h1>Error</h1>", 400
+    return "<h1>Ok</h1>", 200
+
+
+@app.route('/api/events/<int:id>', methods=['DELETE'])
+def delete_event(id):
+    """
+    Delete event with given id
+    """
+    try:
+        Event.query.filter(Event.id == id).delete(synchronize_session='evaluate')
+    except:
+        return "<h1>Error</h1>", 404
+    return "<h1>Ok</h1>", 200
+
+
+"""
+ ****************** TABLES ******************
+"""
+
+
+@app.route('/messages', methods=['GET'])
+def messages():
+    return render_template("messages.html")
+
+
+@app.route('/gates/', methods=['GET'])
+def gates():
+    return render_template("gates.html")
+
+
+@app.route('/', methods=['GET'])
+def events():
+    return render_template("events.html")
+
+
+"""
+ ****************** UTILS ******************
+"""
+
+
+@app.route('/api/gates/<int:id>', methods=['DELETE'])
+def delete_gate(id):
+    """
+    Delete gate with given id
+    """
+    try:
+        Gate.query.filter(Gate.id == id).delete(synchronize_session='evaluate')
+    except:
+        return "<h1>Error</h1>", 404
+    return "<h1>Ok</h1>", 200
+
+
+@app.route('/api/collect_items/', methods=['GET'])
+def process_overlapps():
+    """
+    Find overlapping events in Beacon model for all gates from Pair
+    If found, calculate course
+    Store to Event
+
+    select b1.raspi_serial raspi_one, b1.min_dist dist_one, b2.min_dist dist_two, b1.ibeacon_uuid, b1.ibeacon_major, b1.ibeacon_minor, b1.in_time, b2.out_time
+    from beacons b1
+    inner join beacons b2
+    on b1.ibeacon_uuid = b2.ibeacon_uuid 
+    and b1.ibeacon_major = b2.ibeacon_major 
+    and b1.ibeacon_minor = b2.ibeacon_minor
+    and b1.in_time < b2.in_time
+    and b1.out_time > b2.in_time
+    where b1.raspi_serial = "000000000f6570bb" or b1.raspi_serial = "00000000f56eacba"
+    """
+    try:
+        gates = Gate.query.all()  # List of all available gates
+        for gate in gates:
+            # alias, SQLAlchemy cannot join table to itself
+            b1 = aliased(Beacon)
+            b2 = aliased(Beacon)
+
+            query = db.session.query(b1.raspi_serial.label('raspi_one'),
+                                     b1.min_dist.label('dist_one'),
+                                     b2.min_dist.label('dist_two'),
+                                     b1.ibeacon_uuid,
+                                     b1.ibeacon_major,
+                                     b1.ibeacon_minor,
+                                     b1.in_time,
+                                     b2.out_time)
+            # sub_query filters records for current gate
+            query = query.filter((b1.raspi_serial == gate.raspi_serial_left) |
+                                 (b1.raspi_serial == gate.raspi_serial_right))
+            # main query, seek for overlapping time intervals for each i-beacon
+            query = query.join(b2, (b1.in_time < b2.in_time) &
+                               (b1.out_time > b2.in_time) &
+                               (b1.ibeacon_uuid == b2.ibeacon_uuid) &
+                               (b1.ibeacon_major == b2.ibeacon_major) &
+                               (b1.ibeacon_minor == b2.ibeacon_minor))
+            records = query.all()
+
+            for record in records:
+                # Find left and right bar's distance
+                if record.raspi_one in db.session.query(Gate.raspi_serial_left).all()[0]:
+                    dist_left = record.dist_one
+                    dist_right = record.dist_two
+                else:
+                    dist_right = record.dist_one
+                    dist_left = record.dist_two
+
+                # Find course
+                if dist_left > gate.distance or dist_right > gate.distance:
+                    course = 'wide'
+                elif dist_left <= dist_right // 2:
+                    course = 'left'
+                elif dist_right <= dist_left // 2:
+                    course = 'right'
+                else:
+                    course = 'center'
+
+                new_event = Event(gate_id=gate.id,
+                                  ibeacon_uuid=record.ibeacon_uuid,
+                                  ibeacon_major=record.ibeacon_major,
+                                  ibeacon_minor=record.ibeacon_minor,
+                                  in_time=record.in_time,
+                                  out_time=record.out_time,
+                                  course=course)
+                db.session.add(new_event)
+
+    except:
+        return "<h1>Error</h1>", 400
+    return "<h1>Ok</h1>", 200
 
 
 @app.errorhandler(404)
@@ -62,67 +430,5 @@ def page_not_found(e):
     return "<h1>Error 404</h1>", 404
 
 
-@app.route('/api/add_message/', methods=['GET', 'POST'])
-def add_message():
-    """
-    Inputs new messages and saves it in db
-    """
-    content = request.get_json(silent=True, force=False)
-    if content:
-        new_beacon = Beacon(raspi_serial = content.get('raspi_serial'),
-                            ibeacon_uuid = content.get('ibeacon_uuid'),
-                            ibeacon_major=content.get('ibeacon_major'),
-                            ibeacon_minor=content.get('ibeacon_minor'),
-                            in_time = parser.parse(content.get('in_time')),
-                            out_time = parser.parse(content.get('out_time')),
-                            min_dist = content.get('min_dist'),)
-        db.session.add(new_beacon)
-        return "<h1>Ok</h1>", 200
-    else:
-        return "<h1>Error</h1>", 400
-
-
-@app.route('/api/get_messages/', methods=['GET'])
-def get_messages():
-    """
-    Sends back messages for time between start and end
-    """
-    try:
-        start = parser.parse(request.args.get('start'))
-        end = parser.parse(request.args.get('end'))
-    except:
-        return "<h1>Error</h1>", 400
-
-    content = Beacon.query.filter((Beacon.out_time >= start) & (Beacon.in_time <= end)).all()
-    return jsonify([i.serialize for i in content]), 200
-
-
-@app.route('/api/get_messages/all/', methods=['GET'])
-def get_all_messages():
-    """
-    Sends back all messages
-    """
-    content = Beacon.query.all()
-    return jsonify([i.serialize for i in content]), 200
-
-
-@app.route('/api/delete_message/<int:id>', methods=['DELETE'])
-def delete_message(id):
-    """
-    Delete message with given id
-    """
-    try:
-        Beacon.query.filter(Beacon.id==id).delete(synchronize_session='evaluate')
-    except:
-        return "<h1>Error</h1>", 400
-    return "<h1>Ok</h1>", 200
-
-@app.route('/')
-def index():
-    content = Beacon.query.all()
-    data = json.dumps([i.serialize for i in content])
-    return render_template("table.html", data=data)
-
-
-if __name__== "__main__":
+if __name__ == "__main__":
     app.run(debug=False, host='0.0.0.0', port=80)
