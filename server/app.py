@@ -144,8 +144,18 @@ def add_message():
                              in_time=parser.parse(content.get('in_time')),
                              out_time=parser.parse(content.get('out_time')),
                              min_dist=content.get('min_dist'))
-        db.session.add(new_message)
-        return "<h1>Ok</h1>", 200
+        # check if same record exists
+        if db.session.query(Beacon.id).filter((Beacon.raspi_serial == new_message.raspi_serial) &
+                                                      (Beacon.ibeacon_uuid == new_message.ibeacon_uuid) &
+                                                      (Beacon.ibeacon_major == new_message.ibeacon_major) &
+                                                      (Beacon.ibeacon_minor == new_message.ibeacon_minor) &
+                                                      (Beacon.in_time == new_message.in_time) &
+                                                      (Beacon.out_time == new_message.out_time) &
+                                                      (Beacon.min_dist == new_message.min_dist)).count() == 0:
+            db.session.add(new_message)
+            return "<h1>Ok</h1>", 200
+        else:
+            return "<h1>Error</h1>", 400
     else:
         return "<h1>Error</h1>", 400
 
@@ -211,8 +221,14 @@ def add_gate():
         new_gate = Gate(raspi_serial_left=content.get('raspi_serial_left'),
                         raspi_serial_right=content.get('raspi_serial_right'),
                         distance=content.get('distance'))
-        db.session.add(new_gate)
-        return "<h1>Ok</h1>", 200
+        # check if same record exists
+        if db.session.query(Gate.id).filter((Gate.raspi_serial_left == new_gate.raspi_serial_left) &
+                                                    (Gate.raspi_serial_right == new_gate.raspi_serial_right) &
+                                                    (Gate.distance == new_gate.distance)).count() == 0:
+            db.session.add(new_gate)
+            return "<h1>Ok</h1>", 200
+        else:
+            return "<h1>Error</h1>", 400
     else:
         return "<h1>Error</h1>", 400
 
@@ -266,8 +282,18 @@ def add_event():
                           in_time=parser.parse(content.get('in_time')),
                           out_time=parser.parse(content.get('out_time')),
                           course=content.get('course'))
-        db.session.add(new_event)
-        return "<h1>Ok</h1>", 200
+        # check if same record exists
+        if db.session.query(Event.id).filter((Event.gate_id == new_event.gate_id) &
+                                                     (Event.ibeacon_uuid == new_event.ibeacon_uuid) &
+                                                     (Event.ibeacon_major == new_event.ibeacon_major) &
+                                                     (Event.ibeacon_minor == new_event.ibeacon_minor) &
+                                                     (Event.in_time == new_event.in_time) &
+                                                     (Event.out_time == new_event.out_time) &
+                                                     (Event.course == new_event.course)).count() == 0:
+            db.session.add(new_event)
+            return "<h1>Ok</h1>", 200
+        else:
+            return "<h1>Error</h1>", 400
     else:
         return "<h1>Error</h1>", 400
 
@@ -416,12 +442,12 @@ def process_overlapps():
                                   out_time=record.out_time,
                                   course=course)
                 if db.session.query(Event.id).filter((Event.gate_id == new_event.gate_id) &
-                                                              (Event.ibeacon_uuid == new_event.ibeacon_uuid) &
-                                                              (Event.ibeacon_major == new_event.ibeacon_major) &
-                                                              (Event.ibeacon_minor == new_event.ibeacon_minor) &
-                                                              (Event.in_time == new_event.in_time) &
-                                                              (Event.out_time == new_event.out_time) &
-                                                              (Event.course == new_event.course)).count() == 0:
+                                                             (Event.ibeacon_uuid == new_event.ibeacon_uuid) &
+                                                             (Event.ibeacon_major == new_event.ibeacon_major) &
+                                                             (Event.ibeacon_minor == new_event.ibeacon_minor) &
+                                                             (Event.in_time == new_event.in_time) &
+                                                             (Event.out_time == new_event.out_time) &
+                                                             (Event.course == new_event.course)).count() == 0:
                     db.session.add(new_event)
 
     except:

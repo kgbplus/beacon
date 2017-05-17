@@ -32,6 +32,7 @@
     <p class="toolbar">
         <a class="collect btn btn-primary" href="javascript:">Collect events</a>
         <a class="create btn btn-warning" href="javascript:">Create event</a>
+        <a class="delete btn btn-danger" disabled href="javascript:">Delete</a>
         <a class="gates btn btn-success" href="javascript:">Gates</a>
         <a class="messages btn btn-success" href="javascript:">Messages</a>
         <span class="alert"></span>
@@ -44,6 +45,7 @@
            data-toolbar=".toolbar">
         <thead>
         <tr>
+            <th data-field="state" data-checkbox="true"></th>
             <th data-field="id" data-sortable="true">ID</th>
             <th data-field="gate_id" data-sortable="true">Gate ID</th>
             <th data-field="ibeacon_uuid" data-sortable="true">I-Beacon UUID</th>
@@ -118,6 +120,28 @@
         $('.create').click(function () {
             showModal($(this).text());
         });
+        $('.delete').click(function () {
+            var ids = getIdSelections();
+            if (confirm('Are you sure to delete this?')) {
+                ids.forEach(function (id) {
+                    $.ajax({
+                        type: "DELETE",
+                        url: "/api/events/" + id,
+                        success: function (msg) {
+                            $table.bootstrapTable('remove', {
+                                field: 'id',
+                                values: [id]
+                            });
+                            showAlert('Deleted!', 'success');
+                            $('.delete').attr('disabled', true);
+                        },
+                        error: function () {
+                            showAlert('Error!', 'danger');
+                        }
+                    })
+                })
+            }
+        });
         $('.gates').click(function () {
             window.location.href = '/gates';
         });
@@ -135,6 +159,13 @@
                     showAlert('Collection error!', 'danger');
                 }
             });
+        });
+        $table.on('check.bs.table uncheck.bs.table ' +
+            'check-all.bs.table uncheck-all.bs.table', function () {
+            $('.delete').attr('disabled', !$table.bootstrapTable('getSelections').length);
+            // save your data, here just save the current page
+            selections = getIdSelections();
+            // push or splice the selections if you want to save all data selections
         });
         $modal.find('.submit').click(function () {
             var row = {};
@@ -158,6 +189,11 @@
             });
         });
     });
+    function getIdSelections() {
+        return $.map($table.bootstrapTable('getSelections'), function (row) {
+            return row.id
+        });
+    }
     function queryParams(params) {
         return {};
     }
