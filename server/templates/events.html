@@ -31,9 +31,9 @@
     <h1>Events</h1>
     <p class="toolbar">
         <a class="collect btn btn-primary" href="javascript:">Collect events</a>
-        <a class="create btn btn-default" href="javascript:">Create event</a>
-        <a class="gates btn btn-link" href="javascript:">Gates</a>
-        <a class="messages btn btn-link" href="javascript:">Messages</a>
+        <a class="create btn btn-warning" href="javascript:">Create event</a>
+        <a class="gates btn btn-success" href="javascript:">Gates</a>
+        <a class="messages btn btn-success" href="javascript:">Messages</a>
         <span class="alert"></span>
     </p>
     <table id="table"
@@ -81,11 +81,11 @@
                 </div>
                 <div class="form-group">
                     <label>Major</label>
-                    <input type="number" class="form-control" name="ibeacon_major" placeholder="I-Beacon major">
+                    <input type="text" class="form-control" name="ibeacon_major" placeholder="I-Beacon major">
                 </div>
                 <div class="form-group">
                     <label>Minor</label>
-                    <input type="number" class="form-control" name="ibeacon_minor" placeholder="I-Beacon minor">
+                    <input type="text" class="form-control" name="ibeacon_minor" placeholder="I-Beacon minor">
                 </div>
                 <div class="form-group">
                     <label>In Time</label>
@@ -117,6 +117,12 @@
         // create event
         $('.create').click(function () {
             showModal($(this).text());
+        });
+        $('.gates').click(function () {
+            window.location.href = '/gates';
+        });
+        $('.messages').click(function () {
+            window.location.href = '/messages';
         });
         $('.collect').click(function () {
             $.ajax({

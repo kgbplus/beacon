@@ -390,7 +390,7 @@ def process_overlapps():
             records = query.all()
 
             for record in records:
-                # Find left and right bar's distance
+                # Find left and right side's distance
                 if record.raspi_one in db.session.query(Gate.raspi_serial_left).all()[0]:
                     dist_left = record.dist_one
                     dist_right = record.dist_two
@@ -415,7 +415,14 @@ def process_overlapps():
                                   in_time=record.in_time,
                                   out_time=record.out_time,
                                   course=course)
-                db.session.add(new_event)
+                if db.session.query(Event.id).filter((Event.gate_id == new_event.gate_id) &
+                                                              (Event.ibeacon_uuid == new_event.ibeacon_uuid) &
+                                                              (Event.ibeacon_major == new_event.ibeacon_major) &
+                                                              (Event.ibeacon_minor == new_event.ibeacon_minor) &
+                                                              (Event.in_time == new_event.in_time) &
+                                                              (Event.out_time == new_event.out_time) &
+                                                              (Event.course == new_event.course)).count() == 0:
+                    db.session.add(new_event)
 
     except:
         return "<h1>Error</h1>", 400

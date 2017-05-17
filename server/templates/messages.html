@@ -28,9 +28,9 @@
     <div class="container">
         <h1>Messages</h1>
         <p class="toolbar">
-            <a class="create btn btn-default" href="javascript:">Create Item</a>
-            <a class="events btn btn-link" href="javascript:">Events</a>
-            <a class="gates btn btn-link" href="javascript:">Gates</a>
+            <a class="create btn btn-warning" href="javascript:">Create Item</a>
+            <a class="events btn btn-success" href="javascript:">Events</a>
+            <a class="gates btn btn-success" href="javascript:">Gates</a>
             <span class="alert"></span>
         </p>
         <table id="table"
@@ -76,11 +76,11 @@
                     </div>
                     <div class="form-group">
                         <label>Major</label>
-                        <input type="number" class="form-control" name="ibeacon_major" placeholder="Major">
+                        <input type="text" class="form-control" name="ibeacon_major" placeholder="Major">
                     </div>
                     <div class="form-group">
                         <label>Minor</label>
-                        <input type="number" class="form-control" name="ibeacon_minor" placeholder="Minor">
+                        <input type="text" class="form-control" name="ibeacon_minor" placeholder="Minor">
                     </div>
                     <div class="form-group">
                         <label>In Time</label>
@@ -111,6 +111,12 @@
         // create event
         $('.create').click(function () {
             showModal($(this).text());
+        });
+        $('.events').click(function () {
+            window.location.href = '/';
+        });
+        $('.gates').click(function () {
+            window.location.href = '/gates';
         });
         $modal.find('.submit').click(function () {
             var row = {};

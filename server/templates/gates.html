@@ -28,9 +28,9 @@
     <div class="container">
         <h1>Gates</h1>
         <p class="toolbar">
-            <a class="create btn btn-default" href="javascript:">Create Item</a>
-            <a class="events btn btn-link" href="javascript:">Events</a>
-            <a class="messages btn btn-link" href="javascript:">Messages</a>
+            <a class="create btn btn-warning" href="javascript:">Create Item</a>
+            <a class="events btn btn-success" href="javascript:">Events</a>
+            <a class="messages btn btn-success" href="javascript:">Messages</a>
             <span class="alert"></span>
         </p>
         <table id="table"
@@ -91,6 +91,12 @@
         // create event
         $('.create').click(function () {
             showModal($(this).text());
+        });
+        $('.events').click(function () {
+            window.location.href = '/';
+        });
+        $('.messages').click(function () {
+            window.location.href = '/messages';
         });
         $modal.find('.submit').click(function () {
             var row = {};
