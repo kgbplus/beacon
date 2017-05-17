@@ -4,6 +4,29 @@
 Simple server
 Takes i-beacon read data with POST method
 Return summary data with GET
+
+
+MIT License
+
+Copyright (c) 2017 Roman Mindlin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 """
 
 from flask import Flask, request, jsonify, render_template
@@ -35,9 +58,7 @@ migrate = Migrate(app, db)
 
 
 class Beacon(db.Model):
-    """
-    I-beacon data model
-    """
+    "I-beacon data model"
     __tablename__ = 'beacons'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -51,7 +72,7 @@ class Beacon(db.Model):
 
     @property
     def serialize(self):
-        """Return object data in easily serializeable format"""
+        "Return object data in easily serializeable format"
         return {
             'id': self.id,
             'raspi_serial': self.raspi_serial,
@@ -65,9 +86,7 @@ class Beacon(db.Model):
 
 
 class Gate(db.Model):
-    """
-    I-Beacon agents pairs
-    """
+    "I-Beacon agents pairs"
     __tablename__ = 'gates'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -87,9 +106,7 @@ class Gate(db.Model):
 
 
 class Event(db.Model):
-    """
-    Gate passing through event
-    """
+    "Gate passing through event"
     __tablename__ = 'events'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -103,7 +120,7 @@ class Event(db.Model):
 
     @property
     def serialize(self):
-        """Return object data in easily serializeable format"""
+        "Return object data in easily serializeable format"
         return {
             'id': self.id,
             'gate_id': self.gate_id,
@@ -123,18 +140,14 @@ class Event(db.Model):
 
 @app.route('/api/messages/', methods=['GET'])
 def get_messages():
-    """
-    Sends back all messages
-    """
+    "Sends back all messages"
     content = Beacon.query.all()
     return jsonify([i.serialize for i in content]), 200
 
 
 @app.route('/api/messages/', methods=['POST'])
 def add_message():
-    """
-    Inputs new message and saves it in db
-    """
+    "Inputs new message and saves it in db"
     content = request.get_json(silent=True, force=False)
     if content:
         new_message = Beacon(raspi_serial=content.get('raspi_serial'),
@@ -162,9 +175,7 @@ def add_message():
 
 @app.route('/api/messages/<int:id>', methods=['PUT'])
 def update_message(id):
-    """
-    Update message with given id
-    """
+    "Update message with given id"
     content = request.get_json(silent=True, force=False)
     if content:
         try:
@@ -187,9 +198,7 @@ def update_message(id):
 
 @app.route('/api/messages/<int:id>', methods=['DELETE'])
 def delete_message(id):
-    """
-    Delete message with given id
-    """
+    "Delete message with given id"
     try:
         Beacon.query.filter(Beacon.id == id).delete(synchronize_session='evaluate')
     except:
@@ -204,18 +213,14 @@ def delete_message(id):
 
 @app.route('/api/gates/', methods=['GET'])
 def get_gates():
-    """
-    Sends back all gates
-    """
+    "Sends back all gates"
     content = Gate.query.all()
     return jsonify([i.serialize for i in content]), 200
 
 
 @app.route('/api/gates/', methods=['POST'])
 def add_gate():
-    """
-    Inputs new gate and saves it in db
-    """
+    "Inputs new gate and saves it in db"
     content = request.get_json(silent=True, force=False)
     if content:
         new_gate = Gate(raspi_serial_left=content.get('raspi_serial_left'),
@@ -235,9 +240,7 @@ def add_gate():
 
 @app.route('/api/gates/<int:id>', methods=['PUT'])
 def update_gate(id):
-    """
-    Update gate with given id
-    """
+    "Update gate with given id"
     content = request.get_json(silent=True, force=False)
     if content:
         try:
@@ -261,18 +264,14 @@ def update_gate(id):
 
 @app.route('/api/events/', methods=['GET'])
 def get_events():
-    """
-    Sends back all events
-    """
+    "Sends back all events"
     content = Event.query.all()
     return jsonify([i.serialize for i in content]), 200
 
 
 @app.route('/api/events/', methods=['POST'])
 def add_event():
-    """
-    Inputs new event and saves it in db
-    """
+    "Inputs new event and saves it in db"
     content = request.get_json(silent=True, force=False)
     if content:
         new_event = Event(gate_id=content.get('gate_id'),
@@ -300,9 +299,7 @@ def add_event():
 
 @app.route('/api/events/<int:id>', methods=['PUT'])
 def update_event(id):
-    """
-    Update event with given id
-    """
+    "Update event with given id"
     content = request.get_json(silent=True, force=False)
     if content:
         try:
@@ -325,9 +322,7 @@ def update_event(id):
 
 @app.route('/api/events/<int:id>', methods=['DELETE'])
 def delete_event(id):
-    """
-    Delete event with given id
-    """
+    "Delete event with given id"
     try:
         Event.query.filter(Event.id == id).delete(synchronize_session='evaluate')
     except:
@@ -362,9 +357,7 @@ def events():
 
 @app.route('/api/gates/<int:id>', methods=['DELETE'])
 def delete_gate(id):
-    """
-    Delete gate with given id
-    """
+    "Delete gate with given id"
     try:
         Gate.query.filter(Gate.id == id).delete(synchronize_session='evaluate')
     except:
@@ -457,9 +450,7 @@ def process_overlapps():
 
 @app.errorhandler(404)
 def page_not_found(e):
-    """
-    404 error handler
-    """
+    "404 error handler"
     return "<h1>Error 404</h1>", 404
 
 

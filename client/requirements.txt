@@ -1,1 +1,2 @@
 PyBluez==0.18
+ntplib==0.3.3
