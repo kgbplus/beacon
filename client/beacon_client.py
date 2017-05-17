@@ -43,9 +43,9 @@ import bluetooth._bluetooth as bluez
 
 SERVER_URL = 'http://10.0.100.102/api/messages/'
 # SERVER_URL = 'http://127.0.0.1/api/messages/'
-TIMEOUT = 2
+TIMEOUT = 10
 DIST_ZERO = 50
-ALLOWED_MINOR = ['9621',]
+ALLOWED_MAJOR = ['1',]
 SAVE_FILE = 'beacons.pkl'
 DEBUG = True
 
@@ -193,7 +193,7 @@ def main(*args, **kwargs):
             returnedList = blescan.parse_events(sock, 1)
             for beacon in returnedList:
                 uuid, major, minor = beacon.split(',')[1:4]
-                if minor in ALLOWED_MINOR:
+                if major in ALLOWED_MAJOR:
                     beacon_id = beacon[:-8]
                     beacon_datetime = datetime.datetime.now()
                     beacon_dist = int(beacon[-2:]) - DIST_ZERO
