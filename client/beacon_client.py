@@ -41,13 +41,14 @@ from collections import deque
 
 import bluetooth._bluetooth as bluez
 
-SERVER_URL = 'http://10.0.100.102/api/messages/'
+SERVER_URL = 'http://192.168.43.43/api/messages/'
 # SERVER_URL = 'http://127.0.0.1/api/messages/'
 TIMEOUT = 10
-DIST_ZERO = 50
+DIST_ZERO = 30
+SMA_N = 5
 ALLOWED_MAJOR = ['1',]
 SAVE_FILE = 'beacons.pkl'
-DEBUG = True
+DEBUG = False
 
 
 class Beacons():
@@ -85,7 +86,7 @@ class Beacons():
         except:
             if DEBUG:
                 print("{}, dist = {}, moving_average = NEW".format(beacon, dist))
-            self.beacons[beacon] = [time, time, dist, deque([dist], 5)]
+            self.beacons[beacon] = [time, time, dist, deque([dist], SMA_N)]
         self.save()
 
     def remove(self, beacon):
