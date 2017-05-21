@@ -44,7 +44,6 @@ import bluetooth._bluetooth as bluez
 SERVER_URL = 'http://192.168.43.43/api/messages/'
 # SERVER_URL = 'http://127.0.0.1/api/messages/'
 TIMEOUT = 10
-DIST_ZERO = 30
 SMA_N = 5
 ALLOWED_MAJOR = ['1',]
 SAVE_FILE = 'beacons.pkl'
@@ -74,19 +73,24 @@ class Beacons():
     def min_dist(self, beacon):
         return self.beacons[beacon][2]
 
+    def min_time(self, beacon):
+        return self.beacons[beacon][3]
+
     def add(self, beacon, time, dist):
         "Updates beacon if exist, creates new beacon otherwise"
         try:
-            in_time, last_seen_time, min_dist, last = self.beacons.pop(beacon)
+            in_time, last_seen_time, min_dist, min_time, last = self.beacons.pop(beacon)
             last.append(dist)
             m_average = sum(last) // len(last)
+            new_min_dist = m_average if m_average < min_dist else min_dist
+            new_min_time = time if m_average < min_dist else min_time
             if DEBUG:
                 print("{}, dist = {}, moving_average = {}".format(beacon, dist, m_average))
-            self.beacons[beacon] = [in_time, time, m_average if m_average < min_dist else min_dist, last]
+            self.beacons[beacon] = [in_time, time, new_min_dist, new_min_time, last]
         except:
             if DEBUG:
                 print("{}, dist = {}, moving_average = NEW".format(beacon, dist))
-            self.beacons[beacon] = [time, time, dist, deque([dist], SMA_N)]
+            self.beacons[beacon] = [time, time, dist, time, deque([dist], SMA_N)]
         self.save()
 
     def remove(self, beacon):
@@ -146,7 +150,8 @@ def check_and_send(beacons):
                 'ibeacon_minor': str(minor),
                 'in_time': beacons.in_time(beacon).isoformat(),
                 'out_time': beacons.out_time(beacon).isoformat(),
-                'min_dist': str(beacons.min_dist(beacon))
+                'min_dist': str(beacons.min_dist(beacon)),
+                'min_time': beacons.min_time(beacon).isoformat()
             }
             if DEBUG:
                 print("sending {},{},{}; min_dist = {}".format(uuid, major, minor, beacons.min_dist(beacon)))
@@ -170,6 +175,10 @@ def correct_time():
 
 
 def main(*args, **kwargs):
+
+    if DEBUG:
+        print("Waiting for time sync")
+    time.sleep(10)
     correct_time()
 
     beacons = Beacons()
@@ -197,7 +206,7 @@ def main(*args, **kwargs):
                 if major in ALLOWED_MAJOR:
                     beacon_id = beacon[:-8]
                     beacon_datetime = datetime.datetime.now()
-                    beacon_dist = int(beacon[-2:]) - DIST_ZERO
+                    beacon_dist = int(beacon[-2:])
                     beacons.add(beacon_id, beacon_datetime, beacon_dist)
     except KeyboardInterrupt:
         print("\nCtrl-C pressed")

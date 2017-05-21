@@ -25,6 +25,8 @@
     <script src="/static/jquery.min.js"></script>
     <script src="/static/bootstrap.min.js"></script>
     <script src="/static/bootstrap-table.js"></script>
+    <script src="/static/bootstrap-table-export.js"></script>
+    <script src="/static/tableExport.js"></script>
 </head>
 <body>
 <div class="container">
@@ -41,6 +43,7 @@
            data-pagination="true"
            data-show-refresh="true"
            data-show-columns="true"
+           data-show-export="true"
            data-search="true"
            data-query-params="queryParams"
            data-toolbar=".toolbar">
@@ -52,8 +55,8 @@
             <th data-field="ibeacon_uuid" data-sortable="true">I-Beacon UUID</th>
             <th data-field="ibeacon_major" data-sortable="true">Major</th>
             <th data-field="ibeacon_minor" data-sortable="true">Minor</th>
-            <th data-field="in_time" data-sortable="true">In Time</th>
-            <th data-field="out_time" data-sortable="true">Out Time</th>
+            <th data-field="min_time_left" data-sortable="true">Left Time</th>
+            <th data-field="min_time_right" data-sortable="true">Right Time</th>
             <th data-field="course" data-sortable="true">Course</th>
             <th data-field="action"
                 data-align="center"
@@ -91,12 +94,12 @@
                     <input type="text" class="form-control" name="ibeacon_minor" placeholder="I-Beacon minor">
                 </div>
                 <div class="form-group">
-                    <label>In Time</label>
-                    <input type="text" class="form-control" name="in_time" placeholder="In Time">
+                    <label>Left Time</label>
+                    <input type="text" class="form-control" name="min_time_left" placeholder="Left Time">
                 </div>
                 <div class="form-group">
-                    <label>Out Time</label>
-                    <input type="text" class="form-control" name="out_time" placeholder="Out Time">
+                    <label>Right Time</label>
+                    <input type="text" class="form-control" name="min_time_right" placeholder="Right Time">
                 </div>
                 <div class="form-group">
                     <label>Course</label>

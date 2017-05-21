@@ -38,6 +38,7 @@ from dateutil import parser
 import sys
 
 basedir = os.path.abspath(os.path.dirname(__file__))
+DIST_ZERO = 30
 
 if sys.version_info < (3, 0):
     reload(sys)
@@ -69,6 +70,7 @@ class Beacon(db.Model):
     in_time = db.Column(db.DateTime, index=True)
     out_time = db.Column(db.DateTime, index=True)
     min_dist = db.Column(db.Integer)
+    min_time = db.Column(db.DateTime)
 
     @property
     def serialize(self):
@@ -81,7 +83,8 @@ class Beacon(db.Model):
             'ibeacon_minor': self.ibeacon_minor,
             'in_time': self.in_time.isoformat(),
             'out_time': self.out_time.isoformat(),
-            'min_dist': self.min_dist
+            'min_dist': self.min_dist,
+            'min_time': self.min_time.isoformat()
         }
 
 
@@ -116,6 +119,8 @@ class Event(db.Model):
     ibeacon_minor = db.Column(db.Integer)
     in_time = db.Column(db.DateTime, index=True)
     out_time = db.Column(db.DateTime, index=True)
+    min_time_left = db.Column(db.DateTime)
+    min_time_right = db.Column(db.DateTime)
     course = db.Column(db.Enum('left', 'center', 'right', 'wide'))
 
     @property
@@ -129,6 +134,8 @@ class Event(db.Model):
             'ibeacon_minor': self.ibeacon_minor,
             'in_time': self.in_time.isoformat(),
             'out_time': self.out_time.isoformat(),
+            'min_time_left': self.min_time_left.isoformat(),
+            'min_time_right': self.min_time_right.isoformat(),
             'course': self.course
         }
 
@@ -156,7 +163,8 @@ def add_message():
                              ibeacon_minor=content.get('ibeacon_minor'),
                              in_time=parser.parse(content.get('in_time')),
                              out_time=parser.parse(content.get('out_time')),
-                             min_dist=content.get('min_dist'))
+                             min_dist=int(content.get('min_dist')) - DIST_ZERO,
+                             min_time=parser.parse(content.get('min_time')))
         # check if same record exists
         if db.session.query(Beacon.id).filter((Beacon.raspi_serial == new_message.raspi_serial) &
                                                       (Beacon.ibeacon_uuid == new_message.ibeacon_uuid) &
@@ -164,7 +172,8 @@ def add_message():
                                                       (Beacon.ibeacon_minor == new_message.ibeacon_minor) &
                                                       (Beacon.in_time == new_message.in_time) &
                                                       (Beacon.out_time == new_message.out_time) &
-                                                      (Beacon.min_dist == new_message.min_dist)).count() == 0:
+                                                      (Beacon.min_dist == new_message.min_dist) &
+                                                      (Beacon.min_time == new_message.min_time)).count() == 0:
             db.session.add(new_message)
             return "<h1>Ok</h1>", 200
         else:
@@ -186,7 +195,8 @@ def update_message(id):
             message.ibeacon_minor = content.get('ibeacon_minor')
             message.in_time = parser.parse(content.get('in_time'))
             message.out_time = parser.parse(content.get('out_time'))
-            message.min_dist = content.get('min_dist')
+            message.min_dist = int(content.get('min_dist')) - DIST_ZERO
+            message.min_time = parser.parse(content.get('min_time'))
 
             db.session.commit()
         except:
@@ -396,7 +406,9 @@ def process_overlapps():
                                      b1.ibeacon_major,
                                      b1.ibeacon_minor,
                                      b1.in_time,
-                                     b2.out_time)
+                                     b2.out_time,
+                                     b1.min_time.label('time_one'),
+                                     b2.min_time.label('time_two'))
             # sub_query filters records for current gate
             query = query.filter((b1.raspi_serial == gate.raspi_serial_left) |
                                  (b1.raspi_serial == gate.raspi_serial_right))
@@ -412,10 +424,14 @@ def process_overlapps():
                 # Find left and right side's distance
                 if record.raspi_one in db.session.query(Gate.raspi_serial_left).all()[0]:
                     dist_left = record.dist_one
+                    time_left = record.time_one
                     dist_right = record.dist_two
+                    time_right = record.time_two
                 else:
                     dist_right = record.dist_one
+                    time_right = record.time_one
                     dist_left = record.dist_two
+                    time_left = record.time_two
 
                 # Find course
                 if dist_left > gate.distance or dist_right > gate.distance:
@@ -433,6 +449,8 @@ def process_overlapps():
                                   ibeacon_minor=record.ibeacon_minor,
                                   in_time=record.in_time,
                                   out_time=record.out_time,
+                                  min_time_left = time_left,
+                                  min_time_right = time_right,
                                   course=course)
                 if db.session.query(Event.id).filter((Event.gate_id == new_event.gate_id) &
                                                              (Event.ibeacon_uuid == new_event.ibeacon_uuid) &
@@ -440,6 +458,8 @@ def process_overlapps():
                                                              (Event.ibeacon_minor == new_event.ibeacon_minor) &
                                                              (Event.in_time == new_event.in_time) &
                                                              (Event.out_time == new_event.out_time) &
+                                                             (Event.min_time_left == new_event.min_time_left) &
+                                                             (Event.min_time_right == new_event.min_time_right) &
                                                              (Event.course == new_event.course)).count() == 0:
                     db.session.add(new_event)
 
