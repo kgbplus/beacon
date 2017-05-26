@@ -38,7 +38,6 @@ from dateutil import parser
 import sys
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-DIST_ZERO = 30
 
 if sys.version_info < (3, 0):
     reload(sys)
@@ -163,7 +162,7 @@ def add_message():
                              ibeacon_minor=content.get('ibeacon_minor'),
                              in_time=parser.parse(content.get('in_time')),
                              out_time=parser.parse(content.get('out_time')),
-                             min_dist=int(content.get('min_dist')) - DIST_ZERO,
+                             min_dist=int(content.get('min_dist')),
                              min_time=parser.parse(content.get('min_time')))
         # check if same record exists
         if db.session.query(Beacon.id).filter((Beacon.raspi_serial == new_message.raspi_serial) &
@@ -195,7 +194,7 @@ def update_message(id):
             message.ibeacon_minor = content.get('ibeacon_minor')
             message.in_time = parser.parse(content.get('in_time'))
             message.out_time = parser.parse(content.get('out_time'))
-            message.min_dist = int(content.get('min_dist')) - DIST_ZERO
+            message.min_dist = int(content.get('min_dist'))
             message.min_time = parser.parse(content.get('min_time'))
 
             db.session.commit()

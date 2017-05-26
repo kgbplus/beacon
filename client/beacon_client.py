@@ -36,6 +36,7 @@ import datetime
 import requests
 import threading
 import pickle
+import math
 import os
 from collections import deque
 
@@ -45,7 +46,7 @@ SERVER_URL = 'http://192.168.43.43/api/messages/'
 # SERVER_URL = 'http://127.0.0.1/api/messages/'
 TIMEOUT = 10
 SMA_N = 5
-ALLOWED_MAJOR = ['1',]
+ALLOWED_MAJOR = ['1', ]
 SAVE_FILE = 'beacons.pkl'
 DEBUG = False
 
@@ -79,18 +80,16 @@ class Beacons():
     def add(self, beacon, time, dist):
         "Updates beacon if exist, creates new beacon otherwise"
         try:
-            in_time, last_seen_time, min_dist, min_time, last = self.beacons.pop(beacon)
-            last.append(dist)
-            m_average = sum(last) // len(last)
-            new_min_dist = m_average if m_average < min_dist else min_dist
-            new_min_time = time if m_average < min_dist else min_time
+            in_time, last_seen_time, min_dist, min_time = self.beacons.pop(beacon)
+            new_min_dist = dist if dist < min_dist else min_dist
+            new_min_time = time if dist < min_dist else min_dist
             if DEBUG:
-                print("{}, dist = {}, moving_average = {}".format(beacon, dist, m_average))
-            self.beacons[beacon] = [in_time, time, new_min_dist, new_min_time, last]
+                print("{}, dist = {}".format(beacon, dist))
+            self.beacons[beacon] = [in_time, time, new_min_dist, new_min_time]
         except:
             if DEBUG:
                 print("{}, dist = {}, moving_average = NEW".format(beacon, dist))
-            self.beacons[beacon] = [time, time, dist, time, deque([dist], SMA_N)]
+            self.beacons[beacon] = [time, time, dist, time]
         self.save()
 
     def remove(self, beacon):
@@ -122,6 +121,65 @@ class Beacons():
         "Returns iterable with ready-to-send beacons"
         return [b for b in self.beacons
                 if self.check(b, datetime.datetime.now())]
+
+
+class Kalman():
+    """
+    Implements Kalman filter for RSSI measuring
+    """
+
+    def __init__(self):
+        self.beacons = {}
+
+    def filter(self, beacon, rssi):
+        """
+        Takes beacon id and rssi, stores rssi in array and calculate rssi a posteri estimate
+        Didn't store its state due to memory restrictions (large number of beacons), 
+        but calculate all values every time (high cpu load)
+        """
+        try:
+            self.beacons[beacon].append(rssi)
+            z = self.beacons[beacon]
+
+            # intial parameters
+            n_iter = len(z)
+            Q = 1e-5  # process variance
+            R = 0.1 ** 4  # estimate of measurement variance, change to see effect
+
+            # allocate space for arrays
+            xhat = list()  # a posteri estimate of x
+            P = list()  # a posteri error estimate
+            xhatminus = [0]  # a priori estimate of x
+            Pminus = [0]  # a priori error estimate
+            K = [0]  # gain or blending factor
+
+            # intial guesses
+            xhat.append(-40.0)
+            P.append(1.0)
+
+            for k in range(1, n_iter):
+                # time update
+                xhatminus.append(xhat[k - 1])
+                Pminus.append(P[k - 1] + Q)
+
+                # measurement update
+                K.append(Pminus[k] / (Pminus[k] + R))
+                xhat.append(xhatminus[k] + K[k] * (z[k] - xhatminus[k]))
+                P.append((1 - K[k]) * Pminus[k])
+
+            return int(xhat[-1])
+        except:
+            self.beacons[beacon] = [rssi]
+            return rssi
+
+
+def getrange(txPower, rssi):
+    ratio = rssi * 1.0 / txPower
+    if (ratio < 1.0):
+        return math.pow(ratio, 10)
+    else:
+        accuracy = (0.89976) * math.pow(ratio, 7.7095) + 0.111
+    return round(accuracy)
 
 
 def getserial():
@@ -175,13 +233,13 @@ def correct_time():
 
 
 def main(*args, **kwargs):
-
     if DEBUG:
         print("Waiting for time sync")
     time.sleep(10)
     correct_time()
 
     beacons = Beacons()
+    kf = Kalman()
 
     timer_thread = threading.Thread(target=check_and_send, args=(beacons,))
     timer_thread.daemon = True
@@ -206,7 +264,10 @@ def main(*args, **kwargs):
                 if major in ALLOWED_MAJOR:
                     beacon_id = beacon[:-8]
                     beacon_datetime = datetime.datetime.now()
-                    beacon_dist = int(beacon[-2:])
+                    txpower = int(beacon.split(',')[4])
+                    rssi = int(beacon.split(',')[5])
+                    rssi_filtered = kf.filter(beacon_id, rssi)
+                    beacon_dist = getrange(txpower, rssi_filtered)
                     beacons.add(beacon_id, beacon_datetime, beacon_dist)
     except KeyboardInterrupt:
         print("\nCtrl-C pressed")
