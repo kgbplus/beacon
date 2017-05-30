@@ -212,11 +212,14 @@ def check_and_send(beacons):
             }
             if DEBUG:
                 print("sending {},{},{}; min_dist = {}".format(uuid, major, minor, beacons.min_dist(beacon)))
-            res = requests.post(SERVER_URL, json=json)
-            if res.ok:
-                if DEBUG:
-                    print("sent {},{},{}; min_dist = {}".format(uuid, major, minor, beacons.min_dist(beacon)))
-                beacons.remove(beacon)
+            try:
+                res = requests.post(SERVER_URL, json=json)
+                if res.ok:
+                    if DEBUG:
+                        print("sent {},{},{}; min_dist = {}".format(uuid, major, minor, beacons.min_dist(beacon)))
+                    beacons.remove(beacon)
+            except:
+                pass
 
         time.sleep(TIMEOUT)
 
