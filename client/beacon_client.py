@@ -45,9 +45,8 @@ import bluetooth._bluetooth as bluez
 SERVER_URL = 'http://192.168.43.43/api/messages/'
 # SERVER_URL = 'http://127.0.0.1/api/messages/'
 TIMEOUT = 10
-SMA_N = 5
 ALLOWED_MAJOR = ['1', ]
-SAVE_FILE = 'beacons.pkl'
+SAVE_FILE = '/home/pi/client/beacons.pkl'
 DEBUG = False
 
 
@@ -61,7 +60,6 @@ class Beacons():
         try:
             with open(SAVE_FILE, 'rb') as f:
                 self.beacons = pickle.load(f)
-            os.remove(SAVE_FILE)
         except:
             self.beacons = {}
 
@@ -82,13 +80,13 @@ class Beacons():
         try:
             in_time, last_seen_time, min_dist, min_time = self.beacons.pop(beacon)
             new_min_dist = dist if dist < min_dist else min_dist
-            new_min_time = time if dist < min_dist else min_dist
+            new_min_time = time if dist < min_dist else min_time
             if DEBUG:
                 print("{}, dist = {}".format(beacon, dist))
             self.beacons[beacon] = [in_time, time, new_min_dist, new_min_time]
         except:
             if DEBUG:
-                print("{}, dist = {}, moving_average = NEW".format(beacon, dist))
+                print("{}, dist = {}".format(beacon, dist))
             self.beacons[beacon] = [time, time, dist, time]
         self.save()
 
@@ -174,9 +172,10 @@ class Kalman():
 
 
 def getrange(txPower, rssi):
+    "https://stackoverflow.com/questions/20416218/understanding-ibeacon-distancing"
     ratio = rssi * 1.0 / txPower
     if (ratio < 1.0):
-        return math.pow(ratio, 10)
+        return round(math.pow(ratio, 10))
     else:
         accuracy = (0.89976) * math.pow(ratio, 7.7095) + 0.111
     return round(accuracy)

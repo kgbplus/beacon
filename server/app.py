@@ -162,7 +162,7 @@ def add_message():
                              ibeacon_minor=content.get('ibeacon_minor'),
                              in_time=parser.parse(content.get('in_time')),
                              out_time=parser.parse(content.get('out_time')),
-                             min_dist=int(content.get('min_dist')),
+                             min_dist=int(float(content.get('min_dist'))), 
                              min_time=parser.parse(content.get('min_time')))
         # check if same record exists
         if db.session.query(Beacon.id).filter((Beacon.raspi_serial == new_message.raspi_serial) &
