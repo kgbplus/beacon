@@ -38,16 +38,29 @@ import threading
 import pickle
 import math
 import os
-from collections import deque
+import logging
+import const
 
 import bluetooth._bluetooth as bluez
 
-SERVER_URL = 'http://192.168.43.43/api/messages/'
-# SERVER_URL = 'http://127.0.0.1/api/messages/'
-TIMEOUT = 10
-ALLOWED_MAJOR = ['1', ]
-SAVE_FILE = '/home/pi/client/beacons.pkl'
-DEBUG = False
+"Setup logging"
+LOG_LEVEL = logging.DEBUG
+
+logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
+
+file_handler = logging.FileHandler(const.LOG_FILE)
+file_handler.setLevel(LOG_LEVEL)
+
+stream_handler = logging.StreamHandler()
+stream_handler.setLevel(LOG_LEVEL)
+
+formatter = logging.Formatter('%(asctime)s: %(name)s [%(levelname)s] %(message)s')
+file_handler.setFormatter(formatter)
+stream_handler.setFormatter(formatter)
+
+logger.addHandler(file_handler)
+logger.addHandler(stream_handler)
 
 
 class Beacons():
@@ -58,9 +71,10 @@ class Beacons():
 
     def __init__(self):
         try:
-            with open(SAVE_FILE, 'rb') as f:
+            with open(const.SAVE_FILE, 'rb') as f:
                 self.beacons = pickle.load(f)
         except:
+            logging.warning('Cannot load beacons')
             self.beacons = {}
 
     def in_time(self, beacon):
@@ -81,13 +95,22 @@ class Beacons():
             in_time, last_seen_time, min_dist, min_time = self.beacons.pop(beacon)
             new_min_dist = dist if dist < min_dist else min_dist
             new_min_time = time if dist < min_dist else min_time
-            if DEBUG:
-                print("{}, dist = {}".format(beacon, dist))
+            logger.debug("{}, dist = {}".format(beacon, dist))
             self.beacons[beacon] = [in_time, time, new_min_dist, new_min_time]
         except:
-            if DEBUG:
-                print("{}, dist = {}".format(beacon, dist))
+            logger.debug("{}, dist = {} NEW".format(beacon, dist))
             self.beacons[beacon] = [time, time, dist, time]
+        self.save()
+
+    def add_preserve(self, beacon):
+        "Preserves ready-to-send message"
+        try:
+            beacon_id = beacon + ',' + self.min_time(beacon).isoformat() + 'save'
+            in_time, last_seen_time, min_dist, min_time = self.beacons.pop(beacon)
+            logger.debug("preserve {}, min_dist = {}, min_time = {}".format(beacon, min_dist, min_time))
+            self.beacons[beacon_id] = [in_time, last_seen_time, min_dist, min_time]
+        except Exception as e:
+            logger.error("exception in preserve {}".format(beacon), exc_info=True)
         self.save()
 
     def remove(self, beacon):
@@ -101,7 +124,7 @@ class Beacons():
     def save(self):
         # Try to save beacons
         try:
-            with open(SAVE_FILE, 'wb') as f:
+            with open(const.SAVE_FILE, 'wb') as f:
                 pickle.dump(self.beacons, f, protocol=pickle.HIGHEST_PROTOCOL)
         except:
             pass
@@ -109,7 +132,7 @@ class Beacons():
     def check(self, beacon, time):
         "Returns True if beacon exists and was seen more then TIMEOUT seconds ago"
         try:
-            if (time - self.beacons[beacon][1]).seconds > TIMEOUT:
+            if (time - self.beacons[beacon][1]).seconds > const.TIMEOUT:
                 return True
         except:
             pass
@@ -173,6 +196,8 @@ class Kalman():
 
 def getrange(txPower, rssi):
     "https://stackoverflow.com/questions/20416218/understanding-ibeacon-distancing"
+    if txPower == 0:
+        txPower = 1
     ratio = rssi * 1.0 / txPower
     if (ratio < 1.0):
         return round(math.pow(ratio, 10))
@@ -198,47 +223,54 @@ def getserial():
 def check_and_send(beacons):
     "Check if beacon wasn't seen during TIMEOUT and send it to server"
     while True:
-        for beacon in beacons.ready_to_send():
-            uuid, major, minor = beacon.split(',')[1:4]
-            json = {
-                'raspi_serial': getserial(),
-                'ibeacon_uuid': uuid,
-                'ibeacon_major': str(major),
-                'ibeacon_minor': str(minor),
-                'in_time': beacons.in_time(beacon).isoformat(),
-                'out_time': beacons.out_time(beacon).isoformat(),
-                'min_dist': str(beacons.min_dist(beacon)),
-                'min_time': beacons.min_time(beacon).isoformat()
-            }
-            if DEBUG:
-                print("sending {},{},{}; min_dist = {}".format(uuid, major, minor, beacons.min_dist(beacon)))
-            try:
-                res = requests.post(SERVER_URL, json=json)
-                if res.ok:
-                    if DEBUG:
-                        print("sent {},{},{}; min_dist = {}".format(uuid, major, minor, beacons.min_dist(beacon)))
-                    beacons.remove(beacon)
-            except:
-                pass
+        ready_to_send = list(beacons.ready_to_send())
+        for beacon in ready_to_send:
+            if beacon[-4:] == 'save':
+                uuid, major, minor = beacon.split(',')[1:4]
+                json = {
+                    'raspi_serial': getserial(),
+                    'ibeacon_uuid': uuid,
+                    'ibeacon_major': str(major),
+                    'ibeacon_minor': str(minor),
+                    'in_time': beacons.in_time(beacon).isoformat(),
+                    'out_time': beacons.out_time(beacon).isoformat(),
+                    'min_dist': str(beacons.min_dist(beacon)),
+                    'min_time': beacons.min_time(beacon).isoformat()
+                }
+                logger.debug("sending {},{},{}; min_dist = {}".format(uuid, major, minor, beacons.min_dist(beacon)))
+                try:
+                    res = requests.post(const.SERVER_URL, json=json, timeout=2)
+                    if res.ok:
+                        logger.info("sent {},{},{}; min_dist = {}".format(uuid, major, minor, beacons.min_dist(beacon)))
+                        beacons.remove(beacon)
+                except Exception as e:
+                    logger.error('Server not responding', exc_info=True)
+            else:
+                beacons.add_preserve(beacon)
 
-        time.sleep(TIMEOUT)
+        time.sleep(const.TIMEOUT)
 
 
 def correct_time():
+    "NTP client"
     try:
         import ntplib
         client = ntplib.NTPClient()
         response = client.request('pool.ntp.org')
         os.system('date ' + time.strftime('%m%d%H%M%Y.%S', time.localtime(response.tx_time)))
+        logger.info('Time sync success')
     except:
-        print('Could not sync with time server.')
+        logger.error('Could not sync with time server.', exc_info=True)
 
 
-def main(*args, **kwargs):
-    if DEBUG:
-        print("Waiting for time sync")
-    time.sleep(10)
-    correct_time()
+def start(*args, **kwargs):
+    "Main loop"
+    logger.info("Raspberry serial: {}".format(getserial()))
+
+    if const.TIME_SYNC:
+        logger.info("Waiting for time sync")
+        time.sleep(10)
+        correct_time()
 
     beacons = Beacons()
     kf = Kalman()
@@ -252,10 +284,9 @@ def main(*args, **kwargs):
         sock = bluez.hci_open_dev(dev_id)
         blescan.hci_le_set_scan_parameters(sock)
         blescan.hci_enable_le_scan(sock)
-        if DEBUG:
-            print("ble thread started")
+        logger.info("ble thread started")
     except Exception as e:
-        print("error accessing bluetooth device: {}".format(e[1]))
+        logger.error('Error accessing bluetooth device', exc_info=True)
         sys.exit(1)
 
     try:
@@ -263,7 +294,7 @@ def main(*args, **kwargs):
             returnedList = blescan.parse_events(sock, 1)
             for beacon in returnedList:
                 uuid, major, minor = beacon.split(',')[1:4]
-                if major in ALLOWED_MAJOR:
+                if major in const.ALLOWED_MAJOR:
                     beacon_id = beacon[:-8]
                     beacon_datetime = datetime.datetime.now()
                     txpower = int(beacon.split(',')[4])
@@ -272,9 +303,9 @@ def main(*args, **kwargs):
                     beacon_dist = getrange(txpower, rssi_filtered)
                     beacons.add(beacon_id, beacon_datetime, beacon_dist)
     except KeyboardInterrupt:
-        print("\nCtrl-C pressed")
+        logger.warning("Ctrl-C pressed")
         sys.exit()
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    sys.exit(start(sys.argv))
