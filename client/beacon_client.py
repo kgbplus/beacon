@@ -243,8 +243,8 @@ def check_and_send(beacons):
                     if res.ok:
                         logger.info("sent {},{},{}; min_dist = {}".format(uuid, major, minor, beacons.min_dist(beacon)))
                         beacons.remove(beacon)
-                except Exception as e:
-                    logger.error('Server not responding', exc_info=True)
+                except:
+                    logger.error('Server not responding')
             else:
                 beacons.add_preserve(beacon)
 
@@ -296,12 +296,15 @@ def start(*args, **kwargs):
                 uuid, major, minor = beacon.split(',')[1:4]
                 if major in const.ALLOWED_MAJOR:
                     beacon_id = beacon[:-8]
+                    if beacon_id[-2:] == ',,':  # double comma at end of string
+                        beacon_id = beacon_id[:-1]
                     beacon_datetime = datetime.datetime.now()
                     txpower = int(beacon.split(',')[4])
                     rssi = int(beacon.split(',')[5])
                     rssi_filtered = kf.filter(beacon_id, rssi)
                     beacon_dist = getrange(txpower, rssi_filtered)
-                    beacons.add(beacon_id, beacon_datetime, beacon_dist)
+                    if beacon_dist < const.MAX_RANGE: # maximum range
+                        beacons.add(beacon_id, beacon_datetime, beacon_dist)
     except KeyboardInterrupt:
         logger.warning("Ctrl-C pressed")
         sys.exit()
