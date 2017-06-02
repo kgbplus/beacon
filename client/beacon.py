@@ -71,7 +71,7 @@ class Beacons():
             logger.debug("{}, dist = {}".format(beacon, dist))
             self.beacons[beacon] = [in_time, time, new_min_dist, new_min_time]
         except:
-            logger.debug("{}, dist = {} NEW".format(beacon, dist))
+            logger.info("{}, dist = {} NEW".format(beacon, dist))
             self.beacons[beacon] = [time, time, dist, time]
         self.save()
 
