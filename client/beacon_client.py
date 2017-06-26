@@ -43,7 +43,7 @@ import bluetooth._bluetooth as bluez
 
 from beacon import Beacons
 from kalman import Kalman
-from logger import logger 
+from logger import logger
 
 
 def getrange(txPower, rssi):
@@ -95,12 +95,18 @@ def check_and_send(beacons):
                     if res.ok:
                         logger.info("sent {},{},{}; min_dist = {}".format(uuid, major, minor, beacons.min_dist(beacon)))
                         beacons.remove(beacon)
+                        kf.clear(beacon)
                 except:
-                    logger.error('Server not responding')
+                    logger.debug('Server not responding')
             else:
                 beacons.add_preserve(beacon)
-
         time.sleep(const.TIMEOUT)
+
+
+def save_pkl(beacons):
+    "Saves beacons to file periodically"
+    beacons.save()
+    time.sleep(const.SAVE_TIMEOUT)
 
 
 def correct_time():
@@ -110,6 +116,8 @@ def correct_time():
         client = ntplib.NTPClient()
         response = client.request('pool.ntp.org')
         os.system('date ' + time.strftime('%m%d%H%M%Y.%S', time.localtime(response.tx_time)))
+        if RTC:
+            os.system('hwclock -w') #Sync hardware RTC
         logger.info('Time sync success')
     except:
         logger.error('Could not sync with time server.', exc_info=True)
@@ -130,6 +138,10 @@ def start(*args, **kwargs):
     timer_thread = threading.Thread(target=check_and_send, args=(beacons,))
     timer_thread.daemon = True
     timer_thread.start()
+
+    save_thread = threading.Thread(target=save_pkl, args=(beacons,))
+    save_thread.daemon = True
+    save_thread.start()
 
     dev_id = 0
     try:

@@ -43,6 +43,8 @@ class Beacons():
     """
 
     def __init__(self):
+        self.modified = False
+
         try:
             with open(const.SAVE_FILE, 'rb') as f:
                 self.beacons = pickle.load(f)
@@ -73,7 +75,8 @@ class Beacons():
         except:
             logger.info("{}, dist = {} NEW".format(beacon, dist))
             self.beacons[beacon] = [time, time, dist, time]
-        self.save()
+        finally:
+            self.modified = True
 
     def add_preserve(self, beacon):
         "Preserves ready-to-send message"
@@ -82,23 +85,26 @@ class Beacons():
             in_time, last_seen_time, min_dist, min_time = self.beacons.pop(beacon)
             logger.debug("preserve {}, min_dist = {}, min_time = {}".format(beacon, min_dist, min_time))
             self.beacons[beacon_id] = [in_time, last_seen_time, min_dist, min_time]
+            self.modified = True
         except Exception as e:
             logger.error("exception in preserve {}".format(beacon), exc_info=True)
-        self.save()
 
     def remove(self, beacon):
         "Removes beacon"
         try:
             self.beacons.pop(beacon)
+            self.modified = True
         except:
             pass
-        self.save()
 
     def save(self):
-        # Try to save beacons
+        "Try to save beacons if modified"
         try:
-            with open(const.SAVE_FILE, 'wb') as f:
-                pickle.dump(self.beacons, f, protocol=pickle.HIGHEST_PROTOCOL)
+            if self.modified:
+                with open(const.SAVE_FILE, 'wb') as f:
+                    pickle.dump(self.beacons, f, protocol=pickle.HIGHEST_PROTOCOL)
+                    f.flush()
+                self.modified = False
         except:
             pass
 

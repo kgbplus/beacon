@@ -78,3 +78,9 @@ class Kalman():
         except:
             self.beacons[beacon] = [rssi]
             return rssi
+
+    def clear(self, beacon):
+        """
+        Delete lost beacon records
+        """
+        self.beacons.pop(beacon, None)

@@ -34,7 +34,7 @@ import logging
 import const
 
 "Setup logging"
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
