@@ -43,7 +43,9 @@ import bluetooth._bluetooth as bluez
 
 from beacon import Beacons
 from kalman import Kalman
-from logger import logger
+import logger
+
+logger = logger.get_logger(__name__)
 
 
 def getrange(txPower, rssi):
@@ -117,7 +119,7 @@ def correct_time():
         response = client.request('pool.ntp.org')
         os.system('date ' + time.strftime('%m%d%H%M%Y.%S', time.localtime(response.tx_time)))
         if RTC:
-            os.system('hwclock -w') #Sync hardware RTC
+            os.system('hwclock -w')  # Sync hardware RTC
         logger.info('Time sync success')
     except:
         logger.error('Could not sync with time server.', exc_info=True)

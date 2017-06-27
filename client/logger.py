@@ -33,21 +33,24 @@ import logging
 
 import const
 
-"Setup logging"
-LOG_LEVEL = logging.INFO
+def get_logger(name):
+    "Setup logging"
+    LOG_LEVEL = logging.INFO
 
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+    logger = logging.getLogger(name)
+    logger.setLevel(LOG_LEVEL)
 
-file_handler = logging.FileHandler(const.LOG_FILE)
-file_handler.setLevel(LOG_LEVEL)
+    file_handler = logging.FileHandler(const.LOG_FILE)
+    file_handler.setLevel(LOG_LEVEL)
 
-stream_handler = logging.StreamHandler()
-stream_handler.setLevel(LOG_LEVEL)
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(LOG_LEVEL)
 
-formatter = logging.Formatter('%(asctime)s: %(name)s [%(levelname)s] %(message)s')
-file_handler.setFormatter(formatter)
-stream_handler.setFormatter(formatter)
+    formatter = logging.Formatter('%(asctime)s: %(name)s [%(levelname)s] %(message)s')
+    file_handler.setFormatter(formatter)
+    stream_handler.setFormatter(formatter)
 
-logger.addHandler(file_handler)
-logger.addHandler(stream_handler)
+    logger.addHandler(file_handler)
+    logger.addHandler(stream_handler)
+
+    return logger

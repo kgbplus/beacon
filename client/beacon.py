@@ -33,7 +33,9 @@ import pickle
 import datetime
 
 import const
-from logger import logger
+import logger
+
+logger = logger.get_logger(__name__)
 
 
 class Beacons():
