@@ -107,8 +107,9 @@ class Beacons():
                     pickle.dump(self.beacons, f, protocol=pickle.HIGHEST_PROTOCOL)
                     f.flush()
                 self.modified = False
+                logger.debug("{} records saved to pkl".format(len(self.beacons)))
         except:
-            pass
+            logger.error("pkl save error!")
 
     def check(self, beacon, time):
         "Returns True if beacon exists and was seen more then TIMEOUT seconds ago"

@@ -107,8 +107,9 @@ def check_and_send(beacons):
 
 def save_pkl(beacons):
     "Saves beacons to file periodically"
-    beacons.save()
-    time.sleep(const.SAVE_TIMEOUT)
+    while True:
+        beacons.save()
+        time.sleep(const.SAVE_TIMEOUT)
 
 
 def correct_time():
