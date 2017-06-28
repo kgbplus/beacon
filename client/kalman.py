@@ -29,6 +29,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from collections import deque
+
 
 class Kalman():
     """
@@ -45,6 +47,8 @@ class Kalman():
         but calculate all values every time (high cpu load)
         """
         try:
+            if self.beacons.get(beacon) is None:
+                self.beacons[beacon] = deque(maxlen=100)
             self.beacons[beacon].append(rssi)
             z = self.beacons[beacon]
 

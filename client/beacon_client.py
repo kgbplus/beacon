@@ -52,7 +52,7 @@ def getrange(txPower, rssi):
     "https://stackoverflow.com/questions/20416218/understanding-ibeacon-distancing"
     if txPower == 0:
         txPower = 1
-    ratio = rssi * 1.0 / txPower
+    ratio = float(rssi) / txPower
     if (ratio < 1.0):
         return round(math.pow(ratio, 10))
     else:
@@ -74,7 +74,7 @@ def getserial():
     return cpuserial
 
 
-def check_and_send(beacons):
+def check_and_send(beacons, kf):
     "Check if beacon wasn't seen during TIMEOUT and send it to server"
     while True:
         ready_to_send = list(beacons.ready_to_send())
@@ -138,7 +138,7 @@ def start(*args, **kwargs):
     beacons = Beacons()
     kf = Kalman()
 
-    timer_thread = threading.Thread(target=check_and_send, args=(beacons,))
+    timer_thread = threading.Thread(target=check_and_send, args=(beacons, kf))
     timer_thread.daemon = True
     timer_thread.start()
 
