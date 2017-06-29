@@ -48,7 +48,7 @@ class Kalman():
         """
         try:
             if self.beacons.get(beacon) is None:
-                self.beacons[beacon] = deque(maxlen=100)
+                self.beacons[beacon] = deque(maxlen=30)
             self.beacons[beacon].append(rssi)
             z = self.beacons[beacon]
 

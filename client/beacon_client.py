@@ -56,8 +56,8 @@ def getrange(txPower, rssi):
     if (ratio < 1.0):
         return round(math.pow(ratio, 10))
     else:
-        accuracy = (0.89976) * math.pow(ratio, 7.7095) + 0.111
-    return round(accuracy)
+        distance = (0.89976) * math.pow(ratio, 7.7095) + 0.111
+    return round(distance)
 
 
 def getserial():
@@ -130,6 +130,9 @@ def start(*args, **kwargs):
     "Main loop"
     logger.info("Raspberry serial: {}".format(getserial()))
 
+    if const.DUMP:
+        csv = open('data.csv', 'w')
+
     if const.TIME_SYNC:
         logger.info("Waiting for time sync")
         time.sleep(10)
@@ -168,12 +171,22 @@ def start(*args, **kwargs):
                     beacon_datetime = datetime.datetime.now()
                     txpower = int(beacon.split(',')[4])
                     rssi = int(beacon.split(',')[5])
+
+                    rssi = [-99 if rssi < -99 else rssi] # rssi peak fix
+
                     rssi_filtered = kf.filter(beacon_id, rssi)
                     beacon_dist = getrange(txpower, rssi_filtered)
+
+                    if const.DUMP:
+                        csv.write(beacon + ',')
+                        csv.write('{:.0f}'.format(beacon_dist) + '\n')
+
                     if beacon_dist < const.MAX_RANGE:  # maximum range
                         beacons.add(beacon_id, beacon_datetime, beacon_dist)
     except KeyboardInterrupt:
         logger.warning("Ctrl-C pressed")
+        if const.DUMP:
+            csv.close()
         sys.exit()
 
 

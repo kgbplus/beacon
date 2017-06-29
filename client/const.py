@@ -7,6 +7,7 @@ SAVE_TIMEOUT = 10
 MAX_RANGE = 15
 TIME_SYNC = False
 RTC = True
+DUMP = False
 ALLOWED_MAJOR = ['1', ]
 SAVE_FILE = '/home/pi/client/beacons.pkl'
 LOG_FILE = '/home/pi/client/beacon_client.log'
