@@ -119,7 +119,7 @@ def correct_time():
         client = ntplib.NTPClient()
         response = client.request('pool.ntp.org')
         os.system('date ' + time.strftime('%m%d%H%M%Y.%S', time.localtime(response.tx_time)))
-        if RTC:
+        if const.RTC:
             os.system('hwclock -w')  # Sync hardware RTC
         logger.info('Time sync success')
     except:
@@ -172,7 +172,7 @@ def start(*args, **kwargs):
                     txpower = int(beacon.split(',')[4])
                     rssi = int(beacon.split(',')[5])
 
-                    rssi = [-99 if rssi < -99 else rssi] # rssi peak fix
+                    rssi = -99 if rssi < -99 else rssi # rssi peak fix
 
                     rssi_filtered = kf.filter(beacon_id, rssi)
                     beacon_dist = getrange(txpower, rssi_filtered)
