@@ -178,6 +178,7 @@ def start(*args, **kwargs):
                     beacon_dist = getrange(txpower, rssi_filtered)
 
                     if const.DUMP:
+                        csv.write(str(beacon_datetime) + ',')
                         csv.write(beacon + ',')
                         csv.write('{:.0f}'.format(beacon_dist) + '\n')
 
