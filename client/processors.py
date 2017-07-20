@@ -29,10 +29,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import datetime
+
 from collections import deque
 
 
-class Kalman():
+class Kalman(object):
     """
     Implements Kalman filter for RSSI measuring
     """
@@ -82,6 +84,39 @@ class Kalman():
         except:
             self.beacons[beacon] = [rssi]
             return rssi
+
+    def clear(self, beacon):
+        """
+        Delete lost beacon records
+        """
+        self.beacons.pop(beacon, None)
+
+
+class OneSecondAverage(object):
+    """
+    Calculates average for one second
+    """
+
+    def __init__(self):
+        self.beacons = {}
+
+    def filter(self, beacon, rssi):
+        try:
+            if self.beacons.get(beacon) is None:
+                self.beacons[beacon] = deque(maxlen=30), datetime.datetime.now()
+            else:
+                d, t = self.beacons[beacon]
+                if datetime.datetime.now() - t > datetime.timedelta(seconds=1):
+                    rssi_average = sum(d) // len(d)
+                    d.clear()
+                    self.beacons[beacon] = d, datetime.datetime.now()
+                    return rssi_average
+                else:
+                    d.append(rssi)
+                    return None
+
+        except:
+            return None
 
     def clear(self, beacon):
         """

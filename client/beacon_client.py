@@ -42,7 +42,7 @@ import const
 import bluetooth._bluetooth as bluez
 
 from beacon import Beacons
-from kalman import Kalman
+import processors
 import logger
 
 logger = logger.get_logger(__name__)
@@ -74,7 +74,7 @@ def getserial():
     return cpuserial
 
 
-def check_and_send(beacons, kf):
+def check_and_send(beacons, processor):
     "Check if beacon wasn't seen during TIMEOUT and send it to server"
     while True:
         ready_to_send = list(beacons.ready_to_send())
@@ -97,7 +97,7 @@ def check_and_send(beacons, kf):
                     if res.ok:
                         logger.info("sent {},{},{}; min_dist = {}".format(uuid, major, minor, beacons.min_dist(beacon)))
                         beacons.remove(beacon)
-                        kf.clear(beacon)
+                        processor.clear(beacon)
                 except:
                     logger.debug('Server not responding')
             else:
@@ -139,9 +139,10 @@ def start(*args, **kwargs):
         correct_time()
 
     beacons = Beacons()
-    kf = Kalman()
+    # processor = processors.Kalman()
+    processor = processors.OneSecondAverage()
 
-    timer_thread = threading.Thread(target=check_and_send, args=(beacons, kf))
+    timer_thread = threading.Thread(target=check_and_send, args=(beacons, processor))
     timer_thread.daemon = True
     timer_thread.start()
 
@@ -174,7 +175,10 @@ def start(*args, **kwargs):
 
                     rssi = -99 if rssi < -99 else rssi # rssi peak fix
 
-                    rssi_filtered = kf.filter(beacon_id, rssi)
+                    rssi_filtered = processor.filter(beacon_id, rssi)
+                    if rssi_filtered is None:
+                        continue
+
                     beacon_dist = getrange(txpower, rssi_filtered)
 
                     if const.DUMP:
