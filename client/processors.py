@@ -103,12 +103,15 @@ class OneSecondAverage(object):
     def filter(self, beacon, rssi):
         try:
             if self.beacons.get(beacon) is None:
-                self.beacons[beacon] = deque(maxlen=30), datetime.datetime.now()
+                d = deque(maxlen=30)
+                d.append(rssi)
+                self.beacons[beacon] = d, datetime.datetime.now()
             else:
                 d, t = self.beacons[beacon]
                 if datetime.datetime.now() - t > datetime.timedelta(seconds=1):
                     rssi_average = sum(d) // len(d)
                     d.clear()
+                    d.append(rssi)
                     self.beacons[beacon] = d, datetime.datetime.now()
                     return rssi_average
                 else:
